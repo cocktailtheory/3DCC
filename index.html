@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="3DCC">
+<title>3DCC 1.0 — 立体カクテル座標</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Shippori+Mincho:wght@500;600&family=Zen+Kaku+Gothic+New:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#07070d;--bg2:#0d0d18;--fg:#ece6da;--soft:#9a93a6;--gold:#c79f63;--line:#2a2a3a;--red:#c97a7a;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;background:var(--bg);color:var(--fg);overflow:hidden;}
+  body{font-family:"Zen Kaku Gothic New",sans-serif;-webkit-text-size-adjust:100%;}
+  #scene{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none;}
+  #scene:active{cursor:grabbing;}
+  .hud{position:fixed;pointer-events:none;z-index:5;}
+  .top{top:0;left:0;right:0;padding:clamp(12px,3vw,24px);text-align:center;background:linear-gradient(180deg,rgba(7,7,13,.9),rgba(7,7,13,0));}
+  .top .en{font-family:"Cormorant Garamond",serif;font-style:italic;letter-spacing:.22em;color:var(--gold);font-size:clamp(11px,1.5vw,14px);text-transform:uppercase;}
+  .top h1{font-family:"Shippori Mincho",serif;font-weight:600;font-size:clamp(17px,3.2vw,28px);letter-spacing:.1em;margin-top:.15em;}
+  .top .sub{color:var(--soft);font-size:clamp(10px,1.5vw,12px);letter-spacing:.05em;margin-top:.3em;}
+  .hint{bottom:14px;left:0;right:0;text-align:center;color:var(--soft);font-size:11px;letter-spacing:.08em;}
+  .hint .en{font-family:"Cormorant Garamond",serif;font-style:italic;color:var(--gold);}
+
+  #axiskey{position:fixed;z-index:5;top:clamp(64px,12vw,104px);left:clamp(12px,2vw,22px);font-size:10.5px;color:var(--soft);letter-spacing:.05em;line-height:1.9;pointer-events:none;}
+  #axiskey b{color:var(--fg);font-weight:500;} #axiskey .en{font-family:"Cormorant Garamond",serif;font-style:italic;color:var(--gold);}
+  @media(max-width:560px){ #axiskey{display:none;} }
+
+  /* 編集カード */
+  #card{position:fixed;z-index:6;left:50%;bottom:42px;transform:translateX(-50%) translateY(20px);
+    width:min(440px,90vw);max-height:62vh;overflow-y:auto;background:rgba(13,13,24,.9);backdrop-filter:blur(12px);
+    border:1px solid var(--line);border-radius:7px;padding:16px 18px;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;}
+  #card.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
+  #card .head{display:flex;align-items:center;gap:9px;}
+  #card .swatch{width:13px;height:13px;border-radius:50%;box-shadow:0 0 12px 1px currentColor;flex:none;}
+  #card .zone{display:flex;gap:6px;flex-wrap:wrap;flex:1;}
+  #card .tag{font-size:10.5px;letter-spacing:.05em;border:1px solid var(--line);border-radius:20px;padding:2px 10px;background:rgba(255,255,255,.03);}
+  #card .tag b{color:var(--gold);font-weight:500;font-family:"Cormorant Garamond",serif;font-style:italic;}
+  #card .close{color:var(--soft);font-size:18px;cursor:pointer;padding:0 4px;line-height:1;}
+  #card .close:hover{color:var(--fg);}
+  .cklist{margin-top:12px;}
+  .ckrow{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05);}
+  .ckrow .rcp{font-size:11.5px;color:var(--soft);letter-spacing:.03em;font-family:"Zen Kaku Gothic New",sans-serif;line-height:1.55;}
+  .ckrow .nm{flex:1;font-family:"Shippori Mincho",serif;font-size:15px;letter-spacing:.03em;}
+  .ckrow .nm.rep::before{content:"●";color:var(--gold);font-size:8px;vertical-align:middle;margin-right:6px;}
+  .ckrow .o{font-size:10px;font-family:"Cormorant Garamond",serif;font-style:italic;color:var(--gold);border:1px solid var(--line);border-radius:3px;padding:1px 6px;cursor:pointer;user-select:none;}
+  .ckrow .o.on{background:var(--gold);color:var(--bg);}
+  .ckrow .x{color:var(--red);cursor:pointer;font-size:14px;opacity:.55;padding:0 3px;}
+  .ckrow .x:hover{opacity:1;}
+  .ckempty{color:var(--soft);font-size:12px;padding:8px 0;letter-spacing:.04em;}
+  .ckadd{display:flex;gap:7px;margin-top:10px;}
+  .ckadd input{flex:1;font-family:inherit;font-size:13px;color:var(--fg);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:3px;padding:7px 9px;}
+  .ckadd input:focus{outline:none;border-color:var(--gold);}
+  .ckadd button{font-family:inherit;font-size:12px;color:var(--bg);background:var(--gold);border:none;border-radius:3px;padding:0 14px;cursor:pointer;}
+  .seednote{margin-top:10px;font-size:10px;color:var(--soft);letter-spacing:.03em;}
+
+  /* データボタン＆パネル */
+  #dataBtn{position:fixed;z-index:7;top:clamp(12px,2vw,20px);right:clamp(12px,2vw,20px);font-family:"Cormorant Garamond",serif;font-style:italic;font-size:13px;letter-spacing:.1em;color:var(--gold);background:rgba(13,13,24,.7);border:1px solid var(--line);border-radius:4px;padding:7px 14px;cursor:pointer;}
+  #dataBtn:hover{color:var(--fg);}
+  #dataPanel{position:fixed;z-index:8;top:0;right:0;height:100%;width:min(360px,90vw);background:rgba(10,10,18,.97);border-left:1px solid var(--line);padding:22px;transform:translateX(110%);transition:transform .3s;overflow-y:auto;}
+  #dataPanel.open{transform:translateX(0);}
+  #dataPanel h3{font-family:"Shippori Mincho",serif;font-weight:600;font-size:15px;letter-spacing:.1em;margin-bottom:4px;}
+  #dataPanel .en{font-family:"Cormorant Garamond",serif;font-style:italic;color:var(--gold);font-size:12px;letter-spacing:.1em;}
+  #dataPanel p{font-size:11.5px;color:var(--soft);line-height:1.7;margin:14px 0 8px;letter-spacing:.03em;}
+  #dataPanel .btn{display:block;width:100%;font-family:inherit;font-size:12.5px;letter-spacing:.06em;color:var(--fg);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:4px;padding:10px;cursor:pointer;margin-bottom:8px;text-align:center;}
+  #dataPanel .btn:hover{border-color:var(--gold);}
+  #dataPanel .btn.gold{background:var(--gold);color:var(--bg);border-color:var(--gold);}
+  #dataPanel .btn.danger{color:var(--red);}
+  #dataPanel textarea{width:100%;height:120px;font-family:ui-monospace,monospace;font-size:10.5px;color:var(--fg);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:4px;padding:9px;margin-bottom:8px;resize:vertical;}
+  #dataPanel label.fileBtn{display:block;text-align:center;cursor:pointer;}
+  #dataPanel .msg{font-size:11px;color:var(--gold);min-height:15px;letter-spacing:.04em;}
+  #dataPanel .x{position:absolute;top:16px;right:18px;color:var(--soft);font-size:20px;cursor:pointer;}
+  #dataPanel .x:hover{color:var(--fg);}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div class="hud top">
+  <div class="en">3DCC 1.0</div>
+  <h1>立体カクテル座標</h1>
+  <div class="sub">三軸 × 三段階 ＝ 27のゾーン ／ ドラッグで回し、タップで詰める</div>
+</div>
+
+<div id="axiskey">
+  <div><span class="en">Y</span> &nbsp;Hard <b>↑</b> ／ Light <b>↓</b>　骨格</div>
+  <div><span class="en">X</span> &nbsp;Crisp <b>←</b> ／ Creamy <b>→</b>　口当たり</div>
+  <div><span class="en">Z</span> &nbsp;Dry <b>奥</b> ／ Sweet <b>手前</b>　甘辛</div>
+</div>
+
+<button id="dataBtn">≡ Data</button>
+
+<div id="dataPanel">
+  <span class="x" id="dpClose">×</span>
+  <h3>データ <span class="en">Curate &amp; Save</span></h3>
+  <p>各ゾーンの中身を、いつでも書き出して保存できます。別の端末へ移すとき、私に戻して相談するときに。</p>
+  <button class="btn gold" id="btnExport">書き出す（テキスト）</button>
+  <button class="btn" id="btnDownload">.json で保存</button>
+  <textarea id="ioBox" placeholder="「書き出す」で、27ゾーン全部のカクテルがここに出ます。保存しておいた文字列をここに貼って「読み込む」と復元できます。"></textarea>
+  <button class="btn" id="btnImport">この枠から読み込む</button>
+  <label class="btn fileBtn">ファイルを読み込む<input type="file" id="fileImport" accept=".json" style="display:none;"></label>
+  <button class="btn danger" id="btnReset">初期配置に戻す</button>
+  <div class="msg" id="dpMsg"></div>
+</div>
+
+<div id="card">
+  <div class="head">
+    <span class="swatch" id="cSw"></span>
+    <span class="zone">
+      <span class="tag"><b>骨格</b> <span id="zHard"></span></span>
+      <span class="tag"><b>甘辛</b> <span id="zSweet"></span></span>
+      <span class="tag"><b>口当</b> <span id="zBody"></span></span>
+    </span>
+    <span class="close" id="cClose">×</span>
+  </div>
+  <div class="cklist" id="ckList"></div>
+  <div class="seednote">● ＝ 代表の一杯　／　下段＝主な材料</div>
+</div>
+
+<div class="hud hint">ドラッグで回転 ・ タップで選択 ・ ≡Data で保存　<span class="en">drag · tap · save</span></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const HARD=[["Hard",1],["Mild",0],["Soft",-1]];
+const SWEET=[["Dry",-1],["Semi Sweet",0],["Sweet",1]];
+const BODY=[["Refresh",-1],["Mellow",0],["Creamy",1]];
+
+/* 叩き台（古典＋岩尾オリジナルの仮配置。書き換え前提） */
+const REAL_DATA={"Hard|Dry|Refresh":[{"name":"Gimlet","orig":false,"r":["Gin", "Lime"]}],"Hard|Dry|Mellow":[{"name":"Vesper","orig":false,"r":["Gin", "Vodka", "Lillet Blanc"]},{"name":"Pink Gin","orig":false,"r":["Gin", "Angostura"]}],"Hard|Dry|Creamy":[{"name":"White Cargo","orig":false,"r":["Gin", "Vanilla Ice Cream"]}],"Hard|Semi Sweet|Refresh":[{"name":"Margarita","orig":false,"r":["Tequila", "Cointreau", "Lime"]},{"name":"Daiquiri","orig":false,"r":["White Rum", "Lime", "Sugar"]}],"Hard|Semi Sweet|Mellow":[{"name":"Manhattan","orig":false,"r":["Rye", "Sweet Vermouth", "Angostura"]},{"name":"Negroni","orig":false,"r":["Gin", "Campari", "Sweet Vermouth"]}],"Hard|Semi Sweet|Creamy":[{"name":"White Russian","orig":false,"r":["Vodka", "Coffee Liqueur", "Cream"]}],"Hard|Sweet|Refresh":[{"name":"Old Fashioned","orig":false,"r":["Bourbon", "Sugar", "Angostura", "Orange"]},{"name":"Caipirinha","orig":false,"r":["Cachaça", "Lime", "Sugar"]}],"Hard|Sweet|Mellow":[{"name":"Rusty Nail","orig":false,"r":["Scotch", "Drambuie"]},{"name":"Rob Roy","orig":false,"r":["Scotch", "Sweet Vermouth", "Angostura"]}],"Hard|Sweet|Creamy":[{"name":"Alexander","orig":false,"r":["Brandy", "Crème de Cacao", "Cream"]},{"name":"B-52","orig":false,"r":["Coffee Liqueur", "Irish Cream", "Grand Marnier"]}],"Mild|Dry|Refresh":[{"name":"High Ball","orig":false,"r":["Whisky", "Soda"]},{"name":"Gin Ricky","orig":false,"r":["Gin", "Lime", "Soda"]}],"Mild|Dry|Mellow":[{"name":"Bamboo","orig":false,"r":["Dry Sherry", "Dry Vermouth", "Bitters"]},{"name":"Black Velvet","orig":false,"r":["Stout", "Champagne"]}],"Mild|Dry|Creamy":[{"name":"Cow Boy","orig":false,"r":["Bourbon", "Cream"]}],"Mild|Semi Sweet|Refresh":[{"name":"Mojito","orig":false,"r":["White Rum", "Lime", "Sugar", "Mint", "Soda"]},{"name":"Cosmopolitan","orig":false,"r":["Vodka", "Cointreau", "Cranberry", "Lime"]}],"Mild|Semi Sweet|Mellow":[{"name":"Kir Royale","orig":false,"r":["Champagne", "Crème de Cassis"]},{"name":"Adonis","orig":false,"r":["Dry Sherry", "Sweet Vermouth", "Orange Bitters"]}],"Mild|Semi Sweet|Creamy":[{"name":"Pina Colada","orig":false,"r":["White Rum", "Coconut Cream", "Pineapple"]}],"Mild|Sweet|Refresh":[{"name":"Screw Driver","orig":false,"r":["Vodka", "Orange Juice"]},{"name":"Harvey Wall banger","orig":false,"r":["Vodka", "Orange Juice", "Galliano"]}],"Mild|Sweet|Mellow":[{"name":"Tequila Sunrise","orig":false,"r":["Tequila", "Orange Juice", "Grenadine"]},{"name":"Zombie","orig":false,"r":["White Rum", "Dark Rum", "Lime", "Pineapple", "Grenadine"]}],"Mild|Sweet|Creamy":[{"name":"Irish Coffee","orig":false,"r":["Irish Whiskey", "Coffee", "Sugar", "Cream"]},{"name":"Grasshopper","orig":false,"r":["Crème de Menthe", "Crème de Cacao", "Cream"]}],"Soft|Dry|Refresh":[{"name":"Spritzer","orig":false,"r":["White Wine", "Soda"]}],"Soft|Dry|Mellow":[{"name":"Beer","orig":false,"r":[]}],"Soft|Dry|Creamy":[{"name":"Red Eye","orig":false,"r":["Beer", "Tomato Juice"]}],"Soft|Semi Sweet|Refresh":[{"name":"Sea Breeze","orig":false,"r":["Vodka", "Cranberry", "Grapefruit"]},{"name":"Mimosa","orig":false,"r":["Sparkling Wine", "Orange Juice"]}],"Soft|Semi Sweet|Mellow":[{"name":"Americano","orig":false,"r":["Campari", "Sweet Vermouth", "Soda"]}],"Soft|Semi Sweet|Creamy":[{"name":"Snow Ball","orig":false,"r":["Advocaat", "Lemonade"]}],"Soft|Sweet|Refresh":[{"name":"Cuba Libre","orig":false,"r":["White Rum", "Cola", "Lime"]},{"name":"Bellini","orig":false,"r":["Sparkling Wine", "Peach"]}],"Soft|Sweet|Mellow":[{"name":"Fuzzy Navel","orig":false,"r":["Peach Schnapps", "Orange Juice"]},{"name":"Baby Kir","orig":false,"r":["White Wine", "Crème de Cassis"]}],"Soft|Sweet|Creamy":[{"name":"Kahlua Milk","orig":false,"r":["Coffee Liqueur", "Milk"]},{"name":"Egg Nog","orig":false,"r":["Brandy", "Egg", "Milk", "Sugar"]}]};
+
+let ZONES=[];
+function buildSeed(){
+  ZONES=[];
+  HARD.forEach(([hn,hv])=>SWEET.forEach(([sn,sv])=>BODY.forEach(([bn,bv])=>{
+    const key=`${hn}|${sn}|${bn}`;
+    ZONES.push({key,hard:hn,sweet:sn,body:bn,x:bv,y:hv,z:sv,cocktails:(REAL_DATA[key]||[]).map(c=>({name:String(c.name),orig:!!c.orig,r:Array.isArray(c.r)?c.r.slice():[]}))});
+  })));
+}
+/* 保存形式：{key:[{name,orig}]} */
+const STORE="dcc10_zones";
+function persist(){try{const m={};ZONES.forEach(z=>m[z.key]=z.cocktails);localStorage.setItem(STORE,JSON.stringify(m));}catch(e){}}
+function loadStore(){try{const s=localStorage.getItem(STORE);if(s){const m=JSON.parse(s);buildSeed();ZONES.forEach(z=>{if(m[z.key])z.cocktails=m[z.key];});return true;}}catch(e){}return false;}
+
+function zoneColor(x,y,z){
+  let h=140-(x+1)*70; h-=z*18; if(h<0)h+=360;
+  const s=clamp(0.60+z*0.08,0.2,0.95), l=clamp(0.46+y*0.12,0.2,0.78);
+  const c=new THREE.Color(); c.setHSL(((h/360)%1+1)%1,s,l); return c;
+}
+
+/* ===== Three.js ===== */
+const canvas=document.getElementById("scene");
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(42,1,0.1,100);
+camera.position.set(3.4,2.5,4.6);camera.lookAt(0,0,0);
+scene.add(new THREE.AmbientLight(0xffffff,0.55));
+const pl=new THREE.PointLight(0xffffff,0.9);pl.position.set(4,6,6);scene.add(pl);
+const group=new THREE.Group();scene.add(group);
+const SP=1.3;
+
+/* 枠線は省いた（方位は矢印とラベルで取る） */
+
+function arrow(dir,color){group.add(new THREE.ArrowHelper(dir.clone().normalize(),new THREE.Vector3(0,0,0),SP+1.05,color,0.28,0.16));}
+arrow(new THREE.Vector3(0,1,0),0x8fa9d6);arrow(new THREE.Vector3(0,-1,0),0x6a6a86);
+arrow(new THREE.Vector3(-1,0,0),0x6fcf8f);arrow(new THREE.Vector3(1,0,0),0xd66a6a);
+arrow(new THREE.Vector3(0,0,-1),0x9fd0d6);arrow(new THREE.Vector3(0,0,1),0xe0a05a);
+
+function label(text,pos,color){
+  const cv=document.createElement("canvas");cv.width=256;cv.height=128;
+  const ctx=cv.getContext("2d");
+  ctx.font="italic 46px 'Cormorant Garamond', serif";ctx.fillStyle=color;
+  ctx.textAlign="center";ctx.textBaseline="middle";ctx.shadowColor="rgba(0,0,0,.6)";ctx.shadowBlur=6;
+  ctx.fillText(text,128,64);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthTest:false}));
+  sp.position.copy(pos);sp.scale.set(0.95,0.48,1);group.add(sp);
+}
+const L=SP+1.2;
+label("Hard",new THREE.Vector3(0,L,0),"#bcd0f5");label("Light",new THREE.Vector3(0,-L,0),"#9a93a6");
+label("Crisp",new THREE.Vector3(-L-0.15,0,0),"#8fe3a8");label("Creamy",new THREE.Vector3(L+0.15,0,0),"#f0a0a0");
+label("Dry",new THREE.Vector3(0,0,-L),"#bfe6ec");label("Sweet",new THREE.Vector3(0,0,L),"#f0c080");
+
+/* 球 */
+let spheres=[];
+function buildSpheres(){
+  spheres.forEach(o=>{group.remove(o.mesh);group.remove(o.halo);});
+  spheres=[];
+  ZONES.forEach(z=>{
+    const center=(z.x===0&&z.y===0&&z.z===0);
+    const col=center?new THREE.Color().setHSL(0,0,0.7):zoneColor(z.x,z.y,z.z);
+    const mat=new THREE.MeshStandardMaterial({color:col,emissive:col.clone().multiplyScalar(0.45),roughness:0.35,metalness:0.1});
+    const m=new THREE.Mesh(new THREE.SphereGeometry(center?0.26:0.22,32,32),mat);
+    m.position.set(z.x*SP,z.y*SP,z.z*SP);m.userData={zone:z,col};
+    group.add(m);
+    const halo=new THREE.Mesh(new THREE.SphereGeometry(center?0.42:0.36,24,24),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.10}));
+    halo.position.copy(m.position);group.add(halo);
+    spheres.push({mesh:m,halo,zone:z,col});
+  });
+}
+
+/* ===== 状態 ===== */
+if(!loadStore())buildSeed();
+buildSpheres();
+
+let rotX=0.35,rotY=-0.6,autoRot=true,dragging=false,lastX=0,lastY=0,moved=0;
+function setSize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+addEventListener("resize",setSize);setSize();
+
+canvas.addEventListener("pointerdown",e=>{dragging=true;autoRot=false;lastX=e.clientX;lastY=e.clientY;moved=0;canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener("pointermove",e=>{if(!dragging)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;moved+=Math.abs(dx)+Math.abs(dy);rotY+=dx*0.008;rotX=clamp(rotX+dy*0.008,-1.2,1.2);});
+canvas.addEventListener("pointerup",e=>{dragging=false;if(moved<6)pick(e);setTimeout(()=>{if(!dragging)autoRot=true;},3000);});
+
+const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
+let selected=null,selZone=null;
+function pick(e){
+  const r=canvas.getBoundingClientRect();
+  mouse.x=((e.clientX-r.left)/r.width)*2-1;mouse.y=-((e.clientY-r.top)/r.height)*2+1;
+  ray.setFromCamera(mouse,camera);
+  const hit=ray.intersectObjects(spheres.map(s=>s.mesh))[0];
+  if(hit)select(hit.object);
+}
+function select(m){
+  if(selected){selected.material.emissive=selected.userData.col.clone().multiplyScalar(0.45);
+    const ps=spheres.find(s=>s.mesh===selected);if(ps){ps.mesh.scale.set(1,1,1);ps.halo.scale.set(1,1,1);}}
+  selected=m;m.material.emissive=m.userData.col.clone().multiplyScalar(1.0);
+  const cs=spheres.find(s=>s.mesh===m);if(cs){cs.mesh.scale.set(1.5,1.5,1.5);cs.halo.scale.set(1.5,1.5,1.5);}
+  selZone=m.userData.zone;
+  document.getElementById("zHard").textContent=DISP[selZone.hard]||selZone.hard;
+  document.getElementById("zSweet").textContent=selZone.sweet;
+  document.getElementById("zBody").textContent=DISP[selZone.body]||selZone.body;
+  const sw=document.getElementById("cSw");
+  sw.style.background="#"+m.userData.col.getHexString();sw.style.color="#"+m.userData.col.getHexString();
+  renderCkList();
+  document.getElementById("card").classList.add("show");
+}
+
+const DISP={Soft:"Light",Refresh:"Crisp"};
+/* ===== レシピ表示 ===== */
+function renderCkList(){
+  const box=document.getElementById("ckList");
+  const cks=selZone.cocktails;
+  if(!cks.length){box.innerHTML='<div class="ckempty">この座標には、まだ一杯も置かれていない。</div>';return;}
+  box.innerHTML=cks.map((c,i)=>`
+    <div class="ckrow">
+      <span class="nm ${i===0?'rep':''}">${c.name}</span>
+      ${(c.r&&c.r.length)?`<span class="rcp">${c.r.join(" ・ ")}</span>`:""}
+    </div>`).join("");
+}
+document.getElementById("cClose").addEventListener("click",()=>{document.getElementById("card").classList.remove("show");if(selected){const ps=spheres.find(s=>s.mesh===selected);if(ps){ps.mesh.scale.set(1,1,1);ps.halo.scale.set(1,1,1);}selected.material.emissive=selected.userData.col.clone().multiplyScalar(0.45);selected=null;}});
+
+/* ===== データパネル ===== */
+const dp=document.getElementById("dataPanel");
+function dpMsg(t){const m=document.getElementById("dpMsg");m.textContent=t;setTimeout(()=>{if(m.textContent===t)m.textContent="";},2800);}
+document.getElementById("dataBtn").addEventListener("click",()=>dp.classList.add("open"));
+document.getElementById("dpClose").addEventListener("click",()=>dp.classList.remove("open"));
+document.getElementById("btnExport").addEventListener("click",()=>{const m={};ZONES.forEach(z=>m[z.key]=z.cocktails);document.getElementById("ioBox").value=JSON.stringify(m,null,0);dpMsg("書き出しました");});
+document.getElementById("btnDownload").addEventListener("click",()=>{const m={};ZONES.forEach(z=>m[z.key]=z.cocktails);const blob=new Blob([JSON.stringify(m,null,2)],{type:"application/json"});const u=URL.createObjectURL(blob);const a=document.createElement("a");a.href=u;a.download="3DCC_1.0_data.json";a.click();URL.revokeObjectURL(u);dpMsg("保存しました");});
+function applyMap(m){if(typeof m!=="object"||!m)throw new Error("形式が不正");buildSeed();ZONES.forEach(z=>{if(Array.isArray(m[z.key]))z.cocktails=m[z.key].map(c=>({name:String(c.name||""),orig:!!c.orig,r:Array.isArray(c.r)?c.r.slice():[]})).filter(c=>c.name);});persist();buildSpheres();if(selZone){const s=spheres.find(o=>o.zone.key===selZone.key);if(s){selected=null;select(s.mesh);}}}
+document.getElementById("btnImport").addEventListener("click",()=>{try{applyMap(JSON.parse(document.getElementById("ioBox").value));dpMsg("読み込みました");}catch(e){dpMsg("読み込めません："+e.message);}});
+document.getElementById("fileImport").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{applyMap(JSON.parse(r.result));dpMsg("ファイルを読み込みました");}catch(err){dpMsg("読み込めません："+err.message);}};r.readAsText(f);});
+document.getElementById("btnReset").addEventListener("click",()=>{buildSeed();persist();buildSpheres();document.getElementById("card").classList.remove("show");dpMsg("初期配置に戻しました");});
+
+/* ループ */
+function animate(){requestAnimationFrame(animate);if(autoRot)rotY+=0.0024;group.rotation.x=rotX;group.rotation.y=rotY;renderer.render(scene,camera);}
+animate();
+</script>
+</body>
+</html>
