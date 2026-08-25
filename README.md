@@ -192,6 +192,20 @@ Enter @.
 
 ---
 
+## Hero film production
+
+The motion-language and FWA/FOTD production guide is documented here:
+
+**[HERO_FILM_BIBLE.md](./HERO_FILM_BIBLE.md)**
+
+The rule is simple:
+
+> **The product is real. The film must prove it.**
+
+Live Three.js capture is the source of truth. Generative video is limited to atmosphere and transition texture — never a replacement for the actual interface.
+
+---
+
 ## Status
 
 3DCC is an active experimental project.
